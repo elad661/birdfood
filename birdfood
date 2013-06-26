@@ -35,7 +35,7 @@ import re
 from datetime import datetime
 from mako.template import Template
 from mako import exceptions
-from urllib2 import quote
+from urllib2 import quote, unquote
 cwd = os.getcwd()
 
 class Feeder():
@@ -93,7 +93,7 @@ class Feeder():
             tweet.created_at = tweet.created_at.isoformat()
             feed_arr.append(tweet)
         
-        return self.make_atom(feed_arr, string)
+        return self.make_atom(feed_arr, unquote(string))
 
     @cherrypy.expose()
     def index(self):
