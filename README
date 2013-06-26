@@ -17,3 +17,9 @@ To use birdfood, you'll need a consumer key and consumer secret obtainable via h
 When birdfood is first ran after adding these values to the config file, it will request you to authenticate with twitter. If you already have done so in the past, add the token and token_secret keys to the config file with the relevant values.
 
 It is recommended that the first run of birdfood will be done via CLI and not any server script, to make sure it's working correctly.
+
+Command line parameters:
+
+./birdfood -d will deamonize birdfood. To stop birdfood after deamonzing it, use kill $(cat birdfood.pid)
+./birdfood -p will allow you to specify a port number to listen on
+./birdfood -c will allow you to specify an alternate config file should you need one
