@@ -40,10 +40,17 @@ cwd = os.getcwd()
 class Feeder():
     """Main app class, everything happens here"""
 
-    def __init__(self, consumer_key, consumer_secret, token, token_secret):
+    def __init__(self, consumer_key, consumer_secret, token, token_secret, host):
         self.auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
         self.auth.set_access_token(token, token_secret)
         self.api = tweepy.API(self.auth)
+        self.host = host
+
+    def url(self):
+        if self.host is None:
+            return cherrypy.url()
+        cherry_host = cherrypy.server.base()
+        return cherrypy.url().replace(cherry_host, self.host)
 
     def make_atom(self, timeline, user):
         """Make an atom feed from template"""
@@ -53,7 +60,7 @@ class Feeder():
                                 default_filters=['decode.utf8'])
 
             return template.render(now = datetime.now().isoformat(),
-                               self_id = cherrypy.url(),
+                               self_id = self.url(),
                                url = 'https://twitter.com/%s/' % user,
                                feed_name = user,
                                feed_entries = timeline)
@@ -89,7 +96,7 @@ class Feeder():
 
     @cherrypy.expose()
     def index(self):
-        return "Use  %(url)ssearch/(search terms) or %(url)suser/(username)" % {'url': cherrypy.url()}
+        return "Use  %(url)ssearch/(search terms) or %(url)suser/(username)" % {'url': self.url()}
 
 def main(argv=None):
     config_file = 'birdfood.conf'
@@ -135,13 +142,17 @@ def main(argv=None):
         cherrypy.config.update({'server.socket_port': int(opts.port)})
     token = config.get('birdfood','token')
     token_secret = config.get('birdfood','token_secret')
+    if config.has_option('birdfood', 'host'):
+        host = config.get('birdfood', 'host')
+    else:
+        host = None
     if (opts.deamon):
         logfile = os.path.join(os.getcwd(), 'birdfood.log')
         pid = PIDFile(cherrypy.engine, os.path.join(os.getcwd(), 'birdfood.pid'))
         pid.subscribe()
         d = Daemonizer(cherrypy.engine, stdout=logfile, stderr=logfile)
         d.subscribe()
-    cherrypy.quickstart(Feeder(consumer_key, consumer_secret, token, token_secret))
+    cherrypy.quickstart(Feeder(consumer_key, consumer_secret, token, token_secret, host))
 
 if __name__ == '__main__':
     main()
