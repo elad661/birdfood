@@ -35,6 +35,7 @@ from datetime import datetime
 from mako.template import Template
 from mako import exceptions
 from urllib2 import quote
+cwd = os.getcwd()
 
 class Feeder():
     """Main app class, everything happens here"""
@@ -47,7 +48,7 @@ class Feeder():
     def make_atom(self, timeline, user):
         """Make an atom feed from template"""
         try:
-            template = Template(filename=os.path.join(os.getcwd(), 'feed_template.xml'), 
+            template = Template(filename=os.path.join(cwd, 'feed_template.xml'), 
                                 input_encoding='utf-8', 
                                 default_filters=['decode.utf8'])
 
