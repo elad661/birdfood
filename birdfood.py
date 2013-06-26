@@ -23,6 +23,7 @@
 from __future__ import print_function
 import tweepy
 import cherrypy
+from cherrypy.process.plugins import Daemonizer
 import ConfigParser
 import os
 import os.path
@@ -91,6 +92,8 @@ def main(argv=None):
             help = 'Specify path to configuration file')
     parser.add_option('-p', '--port', 
             help = 'Specify port number to listen on (default is 8080')
+    parser.add_option('-d', '--deamonize', action="store_true", dest="deamon",
+            help='Run as a deamon')
     opts, args = parser.parse_args(argv)
     if opts.config and os.path.isfile(opts.config):
         config_file = opts.config
@@ -126,6 +129,10 @@ def main(argv=None):
         cherrypy.config.update({'server.socket_port': int(opts.port)})
     token = config.get('birdfood','token')
     token_secret = config.get('birdfood','token_secret')
+    if (opts.deamon):
+        logfile = os.path.join(os.getcwd(), 'birdfood.log')
+        d = Daemonizer(cherrypy.engine, stdout=logfile, stderr=logfile)
+        d.subscribe()
     cherrypy.quickstart(Feeder(consumer_key, consumer_secret, token, token_secret))
 
 if __name__ == '__main__':
