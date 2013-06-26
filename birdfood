@@ -31,6 +31,7 @@ import os.path
 import sys
 import re
 import optparse
+import re
 from datetime import datetime
 from mako.template import Template
 from mako import exceptions
@@ -49,8 +50,8 @@ class Feeder():
     def url(self):
         if self.host is None:
             return cherrypy.url()
-        cherry_host = cherrypy.server.base()
-        return cherrypy.url().replace(cherry_host, self.host)
+        url = re.sub('(?:.+?):/*?([^/]+?)/', self.host, cherrypy.url())
+        return url
 
     def make_atom(self, timeline, user):
         """Make an atom feed from template"""
