@@ -24,6 +24,7 @@ from __future__ import print_function
 import tweepy
 import cherrypy
 from cherrypy.process.plugins import Daemonizer
+from cherrypy.process.plugins import PIDFile
 import ConfigParser
 import os
 import os.path
@@ -46,7 +47,7 @@ class Feeder():
     def make_atom(self, timeline, user):
         """Make an atom feed from template"""
         try:
-            template = Template(filename='feed_template.xml', 
+            template = Template(filename=os.path.join(os.getcwd(), 'feed_template.xml'), 
                                 input_encoding='utf-8', 
                                 default_filters=['decode.utf8'])
 
@@ -60,8 +61,10 @@ class Feeder():
             return exceptions.html_error_template().render()
 
     @cherrypy.expose()
-    def user(self, account_name):
+    def user(self, account_name=None):
         """ User feed """
+        if account_name is None:
+            return 'Please specify a user name'
         feed_arr = []
         for tweet in tweepy.Cursor(self.api.user_timeline, id=account_name, count=75).items(75):
             tweet.link = 'https://twitter.com/%s/status/%s' % (tweet.user.screen_name, tweet.id_str)
@@ -71,8 +74,10 @@ class Feeder():
         return self.make_atom(feed_arr, account_name)
 
     @cherrypy.expose()
-    def search(self, string):
+    def search(self, string=None):
         """ Search feed """
+        if string is None:
+            return 'Please specify a search term'
         feed_arr = []
         for tweet in tweepy.Cursor(self.api.search, q=string, result_type='recent', count=75).items(75):
             tweet.link = 'https://twitter.com/%s/status/%s' % (quote(tweet.user.screen_name), tweet.id_str)
@@ -83,7 +88,7 @@ class Feeder():
 
     @cherrypy.expose()
     def index(self):
-        return "You're probably in the wrong place, mate"
+        return "Use  %(url)ssearch/(search terms) or %(url)suser/(username)" % {'url': cherrypy.url()}
 
 def main(argv=None):
     config_file = 'birdfood.conf'
@@ -131,6 +136,8 @@ def main(argv=None):
     token_secret = config.get('birdfood','token_secret')
     if (opts.deamon):
         logfile = os.path.join(os.getcwd(), 'birdfood.log')
+        pid = PIDFile(cherrypy.engine, os.path.join(os.getcwd(), 'birdfood.pid'))
+        pid.subscribe()
         d = Daemonizer(cherrypy.engine, stdout=logfile, stderr=logfile)
         d.subscribe()
     cherrypy.quickstart(Feeder(consumer_key, consumer_secret, token, token_secret))
