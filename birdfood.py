@@ -88,7 +88,9 @@ def main(argv=None):
     config_file = 'birdfood.conf'
     parser = optparse.OptionParser('%prog [options]')
     parser.add_option('-c', '--config',
-            help='Specify path to configuration file')
+            help = 'Specify path to configuration file')
+    parser.add_option('-p', '--port', 
+            help = 'Specify port number to listen on (default is 8080')
     opts, args = parser.parse_args(argv)
     if opts.config and os.path.isfile(opts.config):
         config_file = opts.config
@@ -117,7 +119,11 @@ def main(argv=None):
         config_file_object = open(config_file, 'w')
         config.write(config_file_object)
         config_file_object.close()
- 
+    if opts.port and not opts.port.isdigit():
+        print("Invalid port number!")
+        return 3
+    elif opts.port:
+        cherrypy.config.update({'server.socket_port': int(opts.port)})
     token = config.get('birdfood','token')
     token_secret = config.get('birdfood','token_secret')
     cherrypy.quickstart(Feeder(consumer_key, consumer_secret, token, token_secret))
