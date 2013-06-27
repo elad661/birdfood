@@ -128,7 +128,7 @@ class Feeder():
         if account_name is None:
             return 'Please specify a user name'
         feed_arr = []
-        timeline = tweepy.Cursor(self.api.user_timeline, id=account_name, count=75).items(75)
+        timeline = self.api.user_timeline(id=account_name, count=75)
         
         return self.make_atom(timeline, account_name + ' tweets', link='https://twitter.com/%s' % account_name)
 
@@ -138,7 +138,7 @@ class Feeder():
         if string is None:
             return 'Please specify a search term'
         timeline = tweepy.Cursor(self.api.search, q=string, result_type='recent', count=75).items(75)
-        title = feed_title or unqoute(string) + ' tweets'
+        title = feed_title or unquote(string) + ' tweets'
         return self.make_atom(timeline, title, feed_subtitle, 'https://twitter.com/search?q=%s' % string)
 
     @cherrypy.expose()
