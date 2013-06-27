@@ -6,7 +6,7 @@ For user feeds, use http://example.com/user/elad3 (replace elad3 with the releva
 For searches, use http://example.com/search/keyword (replace keyword with your search terms)
 For saved complex searches, use http://example.com/s/name (see below for more information)
 
-Birdfood is GPL.
+Birdfood is licensed under the terms of the GNU GPLv3 or later.
 
 Birdfood needs a simple config file to run. The following is an example for a birdfood config file (usually named birdfood.conf):
 
