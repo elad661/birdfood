@@ -16,7 +16,7 @@
                     <link href="${entry.link}" />
                     <id>${entry.id_str}</id>
                     <updated>${entry.created_at}</updated>
-                    <summary type="html" dir='rtl'>
+                    <summary type="html">
                     &lt;img src=&quot;${entry.user.profile_image_url_https}&quot;&gt;
                         ${entry.text}
                     </summary>
