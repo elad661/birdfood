@@ -41,11 +41,20 @@ cwd = os.getcwd()
 class Feeder():
     """Main app class, everything happens here"""
 
-    def __init__(self, consumer_key, consumer_secret, token, token_secret, host):
+    def __init__(self, config):
+        consumer_key = config.get('birdfood', 'consumer_key')
+        consumer_secret = config.get('birdfood', 'consumer_secret')
+        token = config.get('birdfood', 'token')
+        token_secret = config.get('birdfood', 'token_secret')
+
         self.auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
         self.auth.set_access_token(token, token_secret)
         self.api = tweepy.API(self.auth)
-        self.host = host
+        if config.has_option('birdfood', 'host'):
+            self.host = config.get('birdfood', 'host')
+        else:
+            self.host = None
+        self.config = config
 
     def url(self):
         if self.host is None:
@@ -53,21 +62,65 @@ class Feeder():
         url = re.sub('(?:.+?):/*?([^/]+?)/', self.host, cherrypy.url())
         return url
 
-    def make_atom(self, timeline, user):
+    def make_htmlescaped_link(self, link, title):
+        return '&lt;a href=&quot;%(link)s&quot;&gt;%(title)s&lt;/a&gt;' % {'link': link, 'title': title}
+
+    def make_atom(self, timeline, feed_title, feed_subtitle=None, link=None):
         """Make an atom feed from template"""
         try:
             template = Template(filename=os.path.join(cwd, 'feed_template.xml'), 
                                 input_encoding='utf-8', 
                                 default_filters=['decode.utf8'])
 
+            modified_timeline = []
+            for tweet in timeline:
+                tweet.link = 'https://twitter.com/%s/status/%s' % (tweet.user.screen_name, tweet.id_str)
+                tweet.created_at = tweet.created_at.isoformat()
+                tweet.untouched_text = tweet.text
+                tweet.text = self.parse_tweet_entities(tweet).replace('\n', '&lt;br&gt;')
+                tweet.lang = self.bcp47_to_iso(tweet.lang)
+                modified_timeline.append(tweet)
+
             return template.render(now = datetime.now().isoformat(),
                                self_id = self.url(),
-                               url = 'https://twitter.com/%s/' % user,
-                               feed_name = user,
-                               feed_entries = timeline)
+                               url = link,
+                               feed_name = feed_title,
+                               feed_subtitle = feed_subtitle,
+                               feed_entries = modified_timeline)
         except:
             print(exceptions.text_error_template().render())
             return exceptions.html_error_template().render()
+
+    def parse_tweet_entities(self, tweet):
+        """ Parse tweet entities such as hashtags or URLs """
+        for url in tweet.entities['urls']:
+            if url['display_url'] is not None:
+                if url['expanded_url'] is not None:
+                    link = self.make_htmlescaped_link(url['expanded_url'], url['display_url'])
+                    tweet.text = tweet.text.replace(url['url'], link)
+                else:
+                    link = self.make_htmlescaped_link(url['url'], url['display_url'])
+                    tweet.text = tweet.text.replace(url['url'], link)
+        for hashtag in tweet.entities['hashtags']:
+            link = self.make_htmlescaped_link('https://twitter.com/search?q=%s' % hashtag['text'], '#'+hashtag['text'])
+            tweet.text = tweet.text.replace('#' + hashtag['text'], link)
+        for mention in tweet.entities['user_mentions']:
+            link = self.make_htmlescaped_link('https://twitter.com/%s' % mention['screen_name'], '@'+mention['screen_name'])
+            tweet.text = tweet.text.replace('@' + mention['screen_name'], link)
+        return tweet.text
+
+    def bcp47_to_iso(self, code):
+        """ Convert odd bcp47 lang codes to codes you can use in XML"""
+        code = code.lower()
+        if code == 'iw':
+            return 'he'
+        elif code == 'in':
+            return 'id'
+        elif code == 'ji':
+            return 'yi'
+        else:
+            #The rest are identical, according to the expert Amir Aharoni
+            return code
 
     @cherrypy.expose()
     def user(self, account_name=None):
@@ -75,25 +128,30 @@ class Feeder():
         if account_name is None:
             return 'Please specify a user name'
         feed_arr = []
-        for tweet in tweepy.Cursor(self.api.user_timeline, id=account_name, count=75).items(75):
-            tweet.link = 'https://twitter.com/%s/status/%s' % (tweet.user.screen_name, tweet.id_str)
-            tweet.created_at = tweet.created_at.isoformat()
-            feed_arr.append(tweet)
+        timeline = tweepy.Cursor(self.api.user_timeline, id=account_name, count=75).items(75)
         
-        return self.make_atom(feed_arr, account_name)
+        return self.make_atom(timeline, account_name + ' tweets', link='https://twitter.com/%s' % account_name)
 
     @cherrypy.expose()
-    def search(self, string=None):
+    def search(self, string=None, feed_title=None, feed_subtitle=None):
         """ Search feed """
         if string is None:
             return 'Please specify a search term'
-        feed_arr = []
-        for tweet in tweepy.Cursor(self.api.search, q=string, result_type='recent', count=75).items(75):
-            tweet.link = 'https://twitter.com/%s/status/%s' % (quote(tweet.user.screen_name), tweet.id_str)
-            tweet.created_at = tweet.created_at.isoformat()
-            feed_arr.append(tweet)
-        
-        return self.make_atom(feed_arr, unquote(string))
+        timeline = tweepy.Cursor(self.api.search, q=string, result_type='recent', count=75).items(75)
+        title = feed_title or unqoute(string) + ' tweets'
+        return self.make_atom(timeline, title, feed_subtitle, 'https://twitter.com/search?q=%s' % string)
+
+    @cherrypy.expose()
+    def s(self, name):
+        """ Saved searches from config """
+        self.config.read(self.config.file)
+        if self.config.has_section('s/'+name):
+            search_string = self.config.get('s/'+name, 'query')
+            feed_title = self.config.get('s/'+name, 'title')
+            feed_subtitle = self.config.get('s/'+name, 'subtitle')
+            return self.search(search_string, feed_title, feed_subtitle)
+        else:
+            raise cherrypy.NotFound()
 
     @cherrypy.expose()
     def index(self):
@@ -115,6 +173,7 @@ def main(argv=None):
         print("Can't find configuration file %s" % config_file)
         return 1
     config = ConfigParser.ConfigParser()
+    config.file = config_file
     config.read(config_file)
     if (not config.has_section('birdfood') or not config.has_option('birdfood', 'consumer_key')
       or not config.has_option('birdfood', 'consumer_secret')):
@@ -141,19 +200,13 @@ def main(argv=None):
         return 3
     elif opts.port:
         cherrypy.config.update({'server.socket_port': int(opts.port)})
-    token = config.get('birdfood','token')
-    token_secret = config.get('birdfood','token_secret')
-    if config.has_option('birdfood', 'host'):
-        host = config.get('birdfood', 'host')
-    else:
-        host = None
     if (opts.deamon):
         logfile = os.path.join(os.getcwd(), 'birdfood.log')
         pid = PIDFile(cherrypy.engine, os.path.join(os.getcwd(), 'birdfood.pid'))
         pid.subscribe()
         d = Daemonizer(cherrypy.engine, stdout=logfile, stderr=logfile)
         d.subscribe()
-    cherrypy.quickstart(Feeder(consumer_key, consumer_secret, token, token_secret, host))
+    cherrypy.quickstart(Feeder(config))
 
 if __name__ == '__main__':
     main()

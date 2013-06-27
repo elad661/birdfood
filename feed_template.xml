@@ -2,18 +2,21 @@
  
 <feed xmlns="http://www.w3.org/2005/Atom">
  
-        <title>${feed_name} tweets</title>
+        <title>${feed_name}</title>
+        % if feed_subtitle is not None:
+        <subtitle>${feed_subtitle}</subtitle>
+        % endif
         <link href="${url}" />
         <id>${self_id}</id>
         <updated>${now}</updated>
  
         % for entry in feed_entries:
-            <entry>
-                    <title>${entry.text}</title>
+            <entry xml:lang="${entry.lang}">
+                    <title>${entry.untouched_text}</title>
                     <link href="${entry.link}" />
                     <id>${entry.id_str}</id>
                     <updated>${entry.created_at}</updated>
-                    <summary type="html">
+                    <summary type="html" dir='rtl'>
                     &lt;img src=&quot;${entry.user.profile_image_url_https}&quot;&gt;
                         ${entry.text}
                     </summary>

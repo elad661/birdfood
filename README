@@ -3,7 +3,8 @@ Birdfood is a small web service that turns twitter searches or user feeds into a
 Birdfood has a simple URL format:
 
 For user feeds, use http://example.com/user/elad3 (replace elad3 with the relevant username)
-for searches, use http://example.com/search/keyword (replace keyword with your search terms)
+For searches, use http://example.com/search/keyword (replace keyword with your search terms)
+For saved complex searches, use http://example.com/s/name (see below for more information)
 
 Birdfood is GPL.
 
@@ -17,6 +18,11 @@ To use birdfood, you'll need a consumer key and consumer secret obtainable via h
 When birdfood is first ran after adding these values to the config file, it will request you to authenticate with twitter. If you already have done so in the past, add the token and token_secret keys to the config file with the relevant values.
 
 Use the optional config key "host" to change the hostname that appears in the output feed as feed ID.
+
+Birdfood also has an optional feature to save searches as shorter urls, which is useful for complex searches.
+To use it, add a section to your config file named [s/name] where name is the name you want to appear in the URL for your saved search.
+This section should have at least two parameters: one named query, which defines the search query for this saved search, and another named title which defines the feed title.
+subtitle is an optional parameter if you would like a subtitle on your feed.
 
 It is recommended that the first run of birdfood will be done via CLI and not any server script, to make sure it's working correctly.
 
